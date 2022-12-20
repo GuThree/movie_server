@@ -1,0 +1,3 @@
+/home/projects/movie_server/cmake-build-debug/CMakeFiles/movie_server.dir
+/home/projects/movie_server/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/projects/movie_server/cmake-build-debug/CMakeFiles/rebuild_cache.dir

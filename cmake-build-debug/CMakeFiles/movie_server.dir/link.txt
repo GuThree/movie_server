@@ -1,0 +1,1 @@
+/usr/bin/c++  -std=c++11 -pthread -g -rdynamic CMakeFiles/movie_server.dir/main.cpp.o CMakeFiles/movie_server.dir/server.cpp.o CMakeFiles/movie_server.dir/chatlist.cpp.o CMakeFiles/movie_server.dir/chat_database.cpp.o -o movie_server  -levent -ljsoncpp -L/usr/lib64/mysql -lmysqlclient -lpthread -lz -lm -ldl -lssl -lcrypto 

@@ -1,0 +1,38 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/projects/movie_server/main.cpp
+iostream
+-
+server.h
+/home/projects/movie_server/server.h
+
+/home/projects/movie_server/server.cpp
+server.h
+/home/projects/movie_server/server.h
+
+/home/projects/movie_server/server.h
+event.h
+-
+string.h
+-
+sys/socket.h
+-
+netinet/in.h
+-
+arpa/inet.h
+-
+thread
+-
+iostream
+-
+event2/listener.h
+-
+unistd.h
+-
+
