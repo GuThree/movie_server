@@ -116,7 +116,18 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_add_group(bev, val);
     }
-
+    else if (cmd == "private_chat")
+    {
+        server_private_chat(bev, val);
+    }
+    else if (cmd == "group_chat")
+    {
+        server_group_chat(bev, val);
+    }
+    else if (cmd == "get_group_member")
+    {
+        server_get_group_member(bev, val);
+    }
 }
 
 void Server::event_cb(struct bufferevent *bev, short what, void *ctx)
@@ -437,4 +448,97 @@ void Server::server_add_group(struct bufferevent *bev, Json::Value val)
     {
         cout << "bufferevent_write" << endl;
     }
+}
+
+void Server::server_private_chat(struct bufferevent *bev, Json::Value val)
+{
+    struct bufferevent *to_bev = chatlist->info_get_friend_bev(val["user_to"].asString());
+
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    if (to_bev == NULL)
+    {
+        Json::Value v;
+        v["cmd"] = "private_chat_reply";
+        v["result"] = "offline";
+
+        string s = Json::writeString(writerBuilder, v);
+        if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+        {
+            cout << "bufferevent_write" << endl;
+        }
+        return;
+    }
+
+    string s = Json::writeString(writerBuilder, val);
+    if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+
+    Json::Value v;
+    v["cmd"] = "private_chat_reply";
+    v["result"] = "success";
+
+    s = Json::writeString(writerBuilder, v);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+}
+
+void Server::server_group_chat(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    for (list<Group>::iterator it = chatlist->group_info->begin(); it != chatlist->group_info->end(); it++)
+    {
+        if (val["group"].asString() == it->name)
+        {
+            for (list<GroupUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            {
+                struct bufferevent *to_bev = chatlist->info_get_friend_bev(i->name);
+                if (to_bev != NULL)
+                {
+                    string s = Json::writeString(writerBuilder, val);
+                    if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
+                    {
+                        cout << "bufferevent_write" << endl;
+                    }
+                }
+            }
+        }
+    }
+
+    Json::Value v;
+    v["cmd"] = "group_chat_reply";
+    v["result"] = "success";
+
+    string s = Json::writeString(writerBuilder, v);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+}
+
+void Server::server_get_group_member(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    string member = chatlist->info_get_group_member(val["group"].asString());
+
+    Json::Value v;
+    v["cmd"] = "get_group_member_reply";
+    v["member"] = member;
+    v["group"] = val["group"];
+
+    string s = Json::writeString(writerBuilder, v);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+
 }
