@@ -50,9 +50,9 @@ public:
     ChatInfo();
     ~ChatInfo();
 
-//    bool info_group_exist(string);
-//    bool info_user_in_group(string, string);
-//    void info_group_add_user(string, string);
+    bool info_group_exist(string);
+    bool info_user_in_group(string, string);
+    void info_group_add_user(string, string);
 //    struct bufferevent *info_get_friend_bev(string);
 //    string info_get_group_member(string);
 //    void info_add_new_group(string, string);

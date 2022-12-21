@@ -40,8 +40,8 @@ private:
     static void server_register(struct bufferevent *bev, Json::Value val);
     static void server_login(struct bufferevent *bev, Json::Value val);
     static void server_add_friend(struct bufferevent *bev, Json::Value val);
-//    static void server_create_group(struct bufferevent *bev, Json::Value val);
-//    static void server_add_group(struct bufferevent *bev, Json::Value val);
+    static void server_create_group(struct bufferevent *bev, Json::Value val);
+    static void server_add_group(struct bufferevent *bev, Json::Value val);
 //    static void server_private_chat(struct bufferevent *bev, Json::Value val);
 //    static void server_group_chat(struct bufferevent *bev, Json::Value val);
 //    static void server_get_group_member(struct bufferevent *bev, Json::Value val);

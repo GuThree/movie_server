@@ -29,10 +29,10 @@ public:
     bool my_database_is_friend(string, string);
     void my_database_get_friend_group(string, string &, string &);
     void my_database_add_new_friend(string, string);
-//    bool my_database_group_exist(string);
-//    void my_database_add_new_group(string, string);
-//    void my_database_user_add_group(string, string);
-//    void my_database_group_add_user(string, string);
+    bool my_database_group_exist(string);
+    void my_database_add_new_group(string, string);
+    void my_database_user_add_group(string, string);
+    void my_database_group_add_user(string, string);
     void my_database_disconnect();
 };
 

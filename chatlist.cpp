@@ -63,3 +63,47 @@ ChatInfo::ChatInfo()
     mydatabase->my_database_disconnect();
     cout << "初始化链表成功" << endl;
 }
+
+bool ChatInfo::info_group_exist(string group_name)
+{
+    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    {
+        if (it->name == group_name)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ChatInfo::info_user_in_group(string group_name, string user_name)
+{
+    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    {
+        if (it->name == group_name)
+        {
+            for (list<GroupUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            {
+                if (i->name == user_name)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+void ChatInfo::info_group_add_user(string group_name, string user_name)
+{
+    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    {
+        if (it->name == group_name)
+        {
+            GroupUser u;
+            u.name = user_name;
+            it->l->push_back(u);
+        }
+    }
+}

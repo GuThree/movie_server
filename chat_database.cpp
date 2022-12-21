@@ -236,3 +236,99 @@ void ChatDataBase::my_database_add_new_friend(string n1, string n2)
         cout << "mysql_query error" << endl;
     }
 }
+
+bool ChatDataBase::my_database_group_exist(string group_name)
+{
+    char sql[128] = {0};
+    sprintf(sql, "show tables like '%s';", group_name.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+
+    MYSQL_RES *res = mysql_store_result(mysql);
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (row == NULL)      // 群不存在
+        return false;
+    else                  // 群存在
+        return true;
+}
+
+void ChatDataBase::my_database_add_new_group(string group_name, string owner)
+{
+    char sql[128] = {0};
+    sprintf(sql, "create table %s (owner varchar(32), member varchar(4096)) character set utf8;", group_name.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+
+    memset(sql, 0, sizeof(sql));
+    sprintf(sql, "insert into %s values ('%s', '%s');", group_name.c_str(), owner.c_str(), owner.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+}
+
+void ChatDataBase::my_database_user_add_group(string user_name, string group_name)
+{
+    char sql[1024] = {0};
+    sprintf(sql, "select chatgroup from %s;", user_name.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+
+    string all_group;
+    MYSQL_RES *res = mysql_store_result(mysql);
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (row[0] != NULL)
+    {
+        all_group += row[0];
+        all_group += "|";
+        all_group += group_name;
+    }
+    else
+    {
+        all_group += group_name;
+    }
+
+    memset(sql, 0, sizeof(sql));
+    sprintf(sql, "update %s set chatgroup = '%s';", user_name.c_str(), all_group.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+}
+
+void ChatDataBase::my_database_group_add_user(string group_name, string user_name)
+{
+    char sql[1024] = {0};
+    sprintf(sql, "select member from %s;", group_name.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+
+    string all_member;
+    MYSQL_RES *res = mysql_store_result(mysql);
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (row[0] != NULL)
+    {
+        all_member += row[0];
+        all_member += "|";
+        all_member += user_name;
+    }
+    else
+    {
+        all_member += user_name;
+    }
+
+    memset(sql, 0, sizeof(sql));
+    sprintf(sql, "update %s set member = '%s';", group_name.c_str(), all_member.c_str());
+    if (mysql_query(mysql, sql) != 0)
+    {
+        cout << "mysql_query error" << endl;
+    }
+}

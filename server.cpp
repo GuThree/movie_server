@@ -108,6 +108,15 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_add_friend(bev, val);
     }
+    else if (cmd == "create_group")
+    {
+        server_create_group(bev, val);
+    }
+    else if (cmd == "add_group")
+    {
+        server_add_group(bev, val);
+    }
+
 }
 
 void Server::event_cb(struct bufferevent *bev, short what, void *ctx)
@@ -155,7 +164,7 @@ void Server::server_register(struct bufferevent *bev, Json::Value val)
 
 void Server::server_login(struct bufferevent *bev, Json::Value val)
 {
-    chatdb->my_database_connect("user");
+    chatdb->my_database_connect("m_user");
     if (!chatdb->my_database_user_exist(val["user"].asString()))   // 用户不存在
     {
         Json::Value val;
@@ -259,7 +268,7 @@ void  Server::server_add_friend(struct bufferevent *bev, Json::Value val)
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
-    chatdb->my_database_connect("user");
+    chatdb->my_database_connect("m_user");
 
     if (!chatdb->my_database_user_exist(val["friend"].asString()))   // 添加的好友不存在
     {
@@ -323,4 +332,109 @@ void  Server::server_add_friend(struct bufferevent *bev, Json::Value val)
     }
 
     chatdb->my_database_disconnect();
+}
+
+void Server::server_create_group(struct bufferevent *bev, Json::Value val)
+{
+    chatdb->my_database_connect("m_group");
+
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    // 判断群是否存在
+    if (chatdb->my_database_group_exist(val["group"].asString()))
+    {
+        Json::Value v;
+        v["cmd"] = "create_group_reply";
+        v["result"] = "group_exist";
+
+        string s = Json::writeString(writerBuilder, v);
+        if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+        {
+            cout << "bufferevent_write" << endl;
+        }
+        return;
+    }
+
+    // 把群信息写入数据库
+    chatdb->my_database_add_new_group(val["group"].asString(), val["user"].asString());
+    chatdb->my_database_disconnect();
+
+    chatdb->my_database_connect("m_user");
+    // 修改数据库个人信息
+    chatdb->my_database_user_add_group(val["user"].asString(), val["group"].asString());
+    //修改群链表
+//    chatlist->info_add_new_group(val["group"].asString(), val["user"].asString());
+
+    Json::Value value;
+    value["cmd"] = "create_group_reply";
+    value["result"] = "success";
+    value["group"] = val["group"];
+
+    string s = Json::writeString(writerBuilder, value);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+
+    chatdb->my_database_disconnect();
+}
+
+void Server::server_add_group(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    // 判断群是否存在
+    if (!chatlist->info_group_exist(val["group"].asString()))
+    {
+        Json::Value v;
+        v["cmd"] = "add_group_reply";
+        v["result"] = "group_not_exist";
+
+        string s = Json::writeString(writerBuilder, v);
+        if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+        {
+            cout << "bufferevent_write" << endl;
+        }
+        return;
+    }
+
+    // 判断用户是否在群里
+    if (chatlist->info_user_in_group(val["group"].asString(), val["user"].asString()))
+    {
+        Json::Value v;
+        v["cmd"] = "add_group_reply";
+        v["result"] = "user_in_group";
+
+        string s = Json::writeString(writerBuilder, v);
+        if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+        {
+            cout << "bufferevent_write" << endl;
+        }
+        return;
+    }
+
+    // 修改数据库（用户表 群表）
+    chatdb->my_database_connect("m_user");
+    chatdb->my_database_user_add_group(val["user"].asString(), val["group"].asString());
+    chatdb->my_database_disconnect();
+
+    chatdb->my_database_connect("m_group");
+    chatdb->my_database_group_add_user(val["group"].asString(), val["user"].asString());
+    chatdb->my_database_disconnect();
+
+    // 修改链表
+    chatlist->info_group_add_user(val["group"].asString(), val["user"].asString());
+
+    Json::Value v;
+    v["cmd"] = "add_group_reply";
+    v["result"] = "success";
+    v["group"] = val["group"];
+
+    string s = Json::writeString(writerBuilder, v);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
 }
