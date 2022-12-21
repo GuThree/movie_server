@@ -132,6 +132,10 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_user_offline(bev, val);
     }
+    else if (cmd == "send_file")
+    {
+        server_send_file(bev, val);
+    }
 }
 
 void Server::event_cb(struct bufferevent *bev, short what, void *ctx)
@@ -606,4 +610,151 @@ void Server::server_user_offline(struct bufferevent *bev, Json::Value val)
     }
 
     chatdb->my_database_disconnect();
+}
+
+void Server::send_file_handler(int length, int port, int *f_fd, int *t_fd)
+{
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1)
+    {
+        return;
+    }
+
+    int opt = 1;
+    setsockopt(sockfd,SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    // 接收缓冲区
+    int nRecvBuf = MAXSIZE;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const char*)&nRecvBuf, sizeof(int));
+    // 发送缓冲区
+    int nSendBuf = MAXSIZE;    //设置为1M
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (const char*)&nSendBuf, sizeof(int));
+
+    struct sockaddr_in server_addr, client_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(IP);
+    bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    listen(sockfd, 10);
+
+    int len = sizeof(client_addr);
+    // 接受发送客户端的连接请求
+    *f_fd = accept(sockfd, (struct sockaddr *)&client_addr, (socklen_t *)&len);
+    // 接受接收客户端的连接请求
+    *t_fd = accept(sockfd, (struct sockaddr *)&client_addr, (socklen_t *)&len);
+
+    char buf[MAXSIZE] = {0};
+    size_t size, sum = 0;
+    while (1)
+    {
+        size = recv(*f_fd, buf, MAXSIZE, 0);
+        if (size <= 0 || size > MAXSIZE)
+        {
+            break;
+        }
+        sum += size;
+        send(*t_fd, buf, size, 0);
+        if (sum >= length)
+        {
+            break;
+        }
+        memset(buf, 0, MAXSIZE);
+    }
+
+    close(*f_fd);
+    close(*t_fd);
+    close(sockfd);
+}
+
+void Server::server_send_file(struct bufferevent *bev, Json::Value val)
+{
+    Json::Value v;
+    string s;
+
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    // 判断对方是否在线
+    struct bufferevent *to_bev = chatlist->info_get_friend_bev(val["to_user"].asString());
+    if (to_bev == NULL)
+    {
+        v["cmd"] = "send_file_reply";
+        v["result"] = "offline";
+        s = Json::writeString(writerBuilder, v);
+        if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+        {
+            cout << "bufferevent_write" << endl;
+        }
+        return;
+    }
+
+    // 启动新线程，创建文件服务器
+    int port = 8080, from_fd = 0, to_fd = 0;
+    thread send_file_thread(send_file_handler, val["length"].asInt(), port, &from_fd, &to_fd);
+    send_file_thread.detach();
+
+    v.clear();
+    v["cmd"] = "send_file_port_reply";
+    v["port"] = port;
+    v["filename"] = val["filename"];
+    v["length"] = val["length"];
+    s = Json::writeString(writerBuilder, v);
+    //if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    if (send(bev->ev_read.ev_fd, s.c_str(), strlen(s.c_str()), 0) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+
+    int count = 0;
+    while (from_fd <= 0)
+    {
+        count++;
+        usleep(100000);
+        if (count == 100)
+        {
+            pthread_cancel(send_file_thread.native_handle());   // 取消线程
+            v.clear();
+            v["cmd"] = "send_file_reply";
+            v["result"] = "timeout";
+            s = Json::writeString(writerBuilder, v);
+            if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+            {
+                cout << "bufferevent_write" << endl;
+            }
+            return;
+        }
+    }
+
+    // 返回端口号给接收客户端
+    v.clear();
+    v["cmd"] = "recv_file_port_reply";
+    v["port"] = port;
+    v["filename"] = val["filename"];
+    v["length"] = val["length"];
+    s = Json::writeString(writerBuilder, v);
+    //if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
+    if (send(to_bev->ev_read.ev_fd, s.c_str(), strlen(s.c_str()), 0) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+
+    count = 0;
+    while (to_fd <= 0)
+    {
+        count++;
+        usleep(100000);
+        if (count == 100)
+        {
+            pthread_cancel(send_file_thread.native_handle());   //取消线程
+            v.clear();
+            v["cmd"] = "send_file_reply";
+            v["result"] = "timeout";
+            s = Json::writeString(writerBuilder, v);
+            if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+            {
+                cout << "bufferevent_write" << endl;
+            }
+        }
+    }
 }

@@ -33,7 +33,6 @@ private:
 private:
     static void listener_cb(struct evconnlistener *listener, evutil_socket_t fd, struct sockaddr *addr, int socklen, void *arg);
     static void client_handler(int);
-//    static void send_file_handler(int, int, int *, int *);
     static void read_cb(struct bufferevent *bev, void *ctx);
     static void event_cb(struct bufferevent *bev, short what, void *ctx);
 
@@ -46,7 +45,8 @@ private:
     static void server_group_chat(struct bufferevent *bev, Json::Value val);
     static void server_get_group_member(struct bufferevent *bev, Json::Value val);
     static void server_user_offline(struct bufferevent *bev, Json::Value val);
-//    static void server_send_file(struct bufferevent *bev, Json::Value val);
+    static void send_file_handler(int, int, int *, int *);
+    static void server_send_file(struct bufferevent *bev, Json::Value val);
 
 public:
     Server(const char *ip = "127.0.0.1", int port = 8000);
