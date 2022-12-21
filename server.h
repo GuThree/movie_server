@@ -45,7 +45,7 @@ private:
     static void server_private_chat(struct bufferevent *bev, Json::Value val);
     static void server_group_chat(struct bufferevent *bev, Json::Value val);
     static void server_get_group_member(struct bufferevent *bev, Json::Value val);
-//    static void server_user_offline(struct bufferevent *bev, Json::Value val);
+    static void server_user_offline(struct bufferevent *bev, Json::Value val);
 //    static void server_send_file(struct bufferevent *bev, Json::Value val);
 
 public:

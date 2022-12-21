@@ -66,7 +66,7 @@ void Server::client_handler(int fd)
     // 使能回调函数
     bufferevent_enable(bev, EV_READ);
 
-    event_base_dispatch(base);    // 监听集合（监听客户端是否有数据发送过来）
+    event_base_dispatch(base);    // 监听集合（监听客户端是否有数据发送过来） 阻塞
 
     event_base_free(base);
     cout << "线程退出、释放集合" << endl;
@@ -127,6 +127,10 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     else if (cmd == "get_group_member")
     {
         server_get_group_member(bev, val);
+    }
+    else if (cmd == "offline")
+    {
+        server_user_offline(bev, val);
     }
 }
 
@@ -541,4 +545,65 @@ void Server::server_get_group_member(struct bufferevent *bev, Json::Value val)
         cout << "bufferevent_write" << endl;
     }
 
+}
+
+void Server::server_user_offline(struct bufferevent *bev, Json::Value val)
+{
+    // 从链表中删除用户
+    for (list<User>::iterator it = chatlist->online_user->begin();
+         it != chatlist->online_user->end(); it++)
+    {
+        if (it->name == val["user"].asString())
+        {
+            chatlist->online_user->erase(it);
+            break;
+        }
+    }
+
+    chatdb->my_database_connect("m_user");
+
+    // 获取好友列表并且返回
+    string friend_list, group_list;
+    string name, s;
+    Json::Value v;
+
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    chatdb->my_database_get_friend_group(val["user"].asString(), friend_list, group_list);
+
+    // 向好友发送下线提醒
+    int start = 0, end = 0, flag = 1;
+    while (flag)
+    {
+        end = friend_list.find('|', start);
+        if (-1 == end)
+        {
+            name = friend_list.substr(start, friend_list.size() - start);
+            flag = 0;
+        }
+        else
+        {
+            name = friend_list.substr(start, end - start);
+        }
+
+        for (list<User>::iterator it = chatlist->online_user->begin();
+             it != chatlist->online_user->end(); it++)
+        {
+            if (name == it->name)
+            {
+                v.clear();
+                v["cmd"] = "friend_offline";
+                v["friend"] = val["user"];
+                s = Json::writeString(writerBuilder, v);
+                if (bufferevent_write(it->bev, s.c_str(), strlen(s.c_str())) < 0)
+                {
+                    cout << "bufferevent_write" << endl;
+                }
+            }
+        }
+        start = end + 1;
+    }
+
+    chatdb->my_database_disconnect();
 }
