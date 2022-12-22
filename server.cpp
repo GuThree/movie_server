@@ -7,10 +7,8 @@
 ChatInfo *Server::chatlist = new ChatInfo;
 ChatDataBase *Server::chatdb = new ChatDataBase;
 
-Server::Server(const char *ip, int port)
+Server::Server(int port)
 {
-    chatlist = new ChatInfo;
-
     // 创建事件集合
     base = event_base_new();
 
@@ -18,7 +16,8 @@ Server::Server(const char *ip, int port)
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(ip);
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+//    server_addr.sin_addr.s_addr = inet_addr(ip);
 
     // 创建监听对象
     listener = evconnlistener_new_bind(base, listener_cb, NULL,
@@ -382,8 +381,8 @@ void Server::server_create_group(struct bufferevent *bev, Json::Value val)
     chatdb->my_database_connect("m_user");
     // 修改数据库个人信息
     chatdb->my_database_user_add_group(val["user"].asString(), val["group"].asString());
-    //修改群链表
-//    chatlist->info_add_new_group(val["group"].asString(), val["user"].asString());
+    // 修改群链表
+    chatlist->info_add_new_group(val["group"].asString(), val["user"].asString());
 
     Json::Value value;
     value["cmd"] = "create_group_reply";
@@ -634,7 +633,8 @@ void Server::send_file_handler(int length, int port, int *f_fd, int *t_fd)
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(IP);
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+//    server_addr.sin_addr.s_addr = inet_addr(IP);
     bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
     listen(sockfd, 10);
 

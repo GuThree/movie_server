@@ -19,7 +19,7 @@
 
 using namespace std;
 
-#define IP     "172.28.184.34"
+//#define IP     "172.28.184.34"
 #define PORT   8000
 #define MAXSIZE  1024 * 1024
 
@@ -49,7 +49,7 @@ private:
     static void server_send_file(struct bufferevent *bev, Json::Value val);
 
 public:
-    Server(const char *ip = "127.0.0.1", int port = 8000);
+    Server(int port = 8000);
     ~Server();
 };
 
