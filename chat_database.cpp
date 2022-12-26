@@ -99,18 +99,18 @@ bool ChatDataBase::my_database_user_exist(string name)
         return true;
 }
 
-void ChatDataBase::my_database_user_password(string name, string password)
+void ChatDataBase::my_database_user_password(string username, string nickname, string password)
 {
     char sql[128] = {0};
-    sprintf(sql, "create table %s (password varchar(16), friends varchar(4096), chatgroup varchar(4096)) character set utf8;", name.c_str());
+    sprintf(sql, "create table %s (password varchar(16), nickname varchar(16), friends varchar(4096), chatgroup varchar(4096)) character set utf8;", username.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;
     }
 
     memset(sql, 0, sizeof(sql));
-    sprintf(sql, "insert into %s (password) values ('%s');",
-            name.c_str(), password.c_str());
+    sprintf(sql, "insert into %s (password, nickname) values ('%s', '%s');",
+            username.c_str(), password.c_str(), nickname.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;

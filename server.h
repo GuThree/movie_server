@@ -16,6 +16,7 @@
 #include "chatlist.h"
 #include <json/json.h>
 #include <unistd.h>
+#include<cstdlib>
 
 using namespace std;
 

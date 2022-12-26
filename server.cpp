@@ -26,6 +26,7 @@ Server::Server(int port)
     if (listener == NULL)
     {
         cout << "evconnlistener_new_bind error" << endl;
+        exit(0);
     }
 
     cout << "服务器初始化成功 开始监听客户端" << endl;
@@ -162,7 +163,7 @@ void Server::server_register(struct bufferevent *bev, Json::Value val)
     }
     else                                               // 用户不存在 可注册
     {
-        chatdb->my_database_user_password(val["user"].asString(), val["password"].asString());
+        chatdb->my_database_user_password(val["user"].asString(), val["nickname"].asString(), val["password"].asString());
         Json::Value val;
         val["cmd"] = "register_reply";
         val["result"] = "success";
@@ -626,7 +627,7 @@ void Server::send_file_handler(int length, int port, int *f_fd, int *t_fd)
     int nRecvBuf = MAXSIZE;
     setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const char*)&nRecvBuf, sizeof(int));
     // 发送缓冲区
-    int nSendBuf = MAXSIZE;    //设置为1M
+    int nSendBuf = MAXSIZE;    // 设置为1M
     setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (const char*)&nSendBuf, sizeof(int));
 
     struct sockaddr_in server_addr, client_addr;
