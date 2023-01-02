@@ -33,7 +33,7 @@ void ChatDataBase::my_database_disconnect()
     mysql_close(mysql);
 }
 
-int ChatDataBase::my_database_get_group_name(string *s)
+int ChatDataBase::my_database_get_room_id(string *s)
 {
     if (mysql_query(mysql, "show tables;") != 0)
     {
@@ -57,7 +57,7 @@ int ChatDataBase::my_database_get_group_name(string *s)
     return count;
 }
 
-void ChatDataBase::my_database_get_group_member(string name, string &s)
+void ChatDataBase::my_database_get_room_member(string name, string &s)
 {
     char sql[1024] = {0};
     sprintf(sql, "select member from %s;", name.c_str());
@@ -102,7 +102,9 @@ bool ChatDataBase::my_database_user_exist(string name)
 void ChatDataBase::my_database_user_password(string username, string nickname, string password)
 {
     char sql[128] = {0};
-    sprintf(sql, "create table %s (password varchar(16), nickname varchar(16), friends varchar(4096), chatgroup varchar(4096)) character set utf8;", username.c_str());
+    sprintf(sql, "create table %s (password varchar(16), nickname varchar(16), friends varchar(4096)) character set utf8;"
+            , username.c_str());
+    cout << sql;
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;
@@ -134,7 +136,7 @@ bool ChatDataBase::my_database_password_correct(string name, string password)
         return false;
 }
 
-void ChatDataBase::my_database_get_friend_group(string name, string &f, string &g)
+void ChatDataBase::my_database_get_friend(string name, string &f)
 {
     char sql[128] = {0};
     sprintf(sql, "select friends from %s;", name.c_str());
@@ -149,19 +151,6 @@ void ChatDataBase::my_database_get_friend_group(string name, string &f, string &
         f.append(row[0]);
     }
     mysql_free_result(res);
-
-    memset(sql, 0, sizeof(sql));
-    sprintf(sql, "select chatgroup from %s;", name.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-    res = mysql_store_result(mysql);
-    row = mysql_fetch_row(res);
-    if (row[0] != NULL)
-    {
-        g.append(row[0]);
-    }
 }
 
 bool ChatDataBase::my_database_is_friend(string n1, string n2)
@@ -237,10 +226,10 @@ void ChatDataBase::my_database_add_new_friend(string n1, string n2)
     }
 }
 
-bool ChatDataBase::my_database_group_exist(string group_name)
+void ChatDataBase::my_database_get_nickname(string username, string &nickname)
 {
     char sql[128] = {0};
-    sprintf(sql, "show tables like '%s';", group_name.c_str());
+    sprintf(sql, "select nickname from %s;", username.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;
@@ -248,87 +237,5 @@ bool ChatDataBase::my_database_group_exist(string group_name)
 
     MYSQL_RES *res = mysql_store_result(mysql);
     MYSQL_ROW row = mysql_fetch_row(res);
-    if (row == NULL)      // 群不存在
-        return false;
-    else                  // 群存在
-        return true;
-}
-
-void ChatDataBase::my_database_add_new_group(string group_name, string owner)
-{
-    char sql[128] = {0};
-    sprintf(sql, "create table %s (owner varchar(32), member varchar(4096)) character set utf8;", group_name.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-
-    memset(sql, 0, sizeof(sql));
-    sprintf(sql, "insert into %s values ('%s', '%s');", group_name.c_str(), owner.c_str(), owner.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-}
-
-void ChatDataBase::my_database_user_add_group(string user_name, string group_name)
-{
-    char sql[1024] = {0};
-    sprintf(sql, "select chatgroup from %s;", user_name.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-
-    string all_group;
-    MYSQL_RES *res = mysql_store_result(mysql);
-    MYSQL_ROW row = mysql_fetch_row(res);
-    if (row[0] != NULL)
-    {
-        all_group += row[0];
-        all_group += "|";
-        all_group += group_name;
-    }
-    else
-    {
-        all_group += group_name;
-    }
-
-    memset(sql, 0, sizeof(sql));
-    sprintf(sql, "update %s set chatgroup = '%s';", user_name.c_str(), all_group.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-}
-
-void ChatDataBase::my_database_group_add_user(string group_name, string user_name)
-{
-    char sql[1024] = {0};
-    sprintf(sql, "select member from %s;", group_name.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-
-    string all_member;
-    MYSQL_RES *res = mysql_store_result(mysql);
-    MYSQL_ROW row = mysql_fetch_row(res);
-    if (row[0] != NULL)
-    {
-        all_member += row[0];
-        all_member += "|";
-        all_member += user_name;
-    }
-    else
-    {
-        all_member += user_name;
-    }
-
-    memset(sql, 0, sizeof(sql));
-    sprintf(sql, "update %s set member = '%s';", group_name.c_str(), all_member.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
+    nickname = row[0];
 }

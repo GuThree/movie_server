@@ -8,67 +8,16 @@ ChatInfo::ChatInfo()
 {
     online_user = new list<User>;
 
-    group_info = new list<Group>;
+    room_info = new list<Room>;
 
-    //往group_info链表中添加群信息
-    mydatabase = new ChatDataBase;
-    mydatabase->my_database_connect("m_group");
-
-    string group_name[MAXNUM];
-    int group_num = mydatabase->my_database_get_group_name(group_name);
-
-    for (int i = 0; i < group_num; ++i){
-        Group g;
-        g.name = group_name[i];
-        g.l = new list<GroupUser>;    // 保存群中所有用户
-        group_info->push_back(g);
-
-        string member;              // 保存群里所有用户
-        mydatabase->my_database_get_group_member(group_name[i], member);
-        if (member.size() == 0)
-        {
-            continue;
-        }
-
-        // 解析组成员
-        int start = 0, end = 0;
-        GroupUser u;
-        while (1)
-        {
-            end = member.find('|', start);
-            if (-1 == end)
-            {
-                break;
-            }
-            u.name = member.substr(start, end - start);
-            g.l->push_back(u);
-            start = end + 1;
-            u.name.clear();
-        }
-        u.name = member.substr(start, member.size() - start);
-        g.l->push_back(u);
-    }
-
-    /*
-    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
-	{
-		cout << "群名字 " << it->name << endl;
-		for (list<GroupUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
-		{
-			cout << i->name << endl;
-		}
-	}
-    */
-
-    mydatabase->my_database_disconnect();
     cout << "初始化链表成功" << endl;
 }
 
-bool ChatInfo::info_group_exist(string group_name)
+bool ChatInfo::info_room_exist(string room_name)
 {
-    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    for (list<Room>::iterator it = room_info->begin(); it != room_info->end(); it++)
     {
-        if (it->name == group_name)
+        if (it->roomid == room_name)
         {
             return true;
         }
@@ -76,15 +25,15 @@ bool ChatInfo::info_group_exist(string group_name)
     return false;
 }
 
-bool ChatInfo::info_user_in_group(string group_name, string user_name)
+bool ChatInfo::info_user_in_room(string room_id, string user_name)
 {
-    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    for (list<Room>::iterator it = room_info->begin(); it != room_info->end(); it++)
     {
-        if (it->name == group_name)
+        if (it->roomid == room_id)
         {
-            for (list<GroupUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            for (list<RoomUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
             {
-                if (i->name == user_name)
+                if (i->username == user_name)
                 {
                     return true;
                 }
@@ -95,24 +44,25 @@ bool ChatInfo::info_user_in_group(string group_name, string user_name)
     return false;
 }
 
-void ChatInfo::info_group_add_user(string group_name, string user_name)
+void ChatInfo::info_room_add_user(string room_name, string user_name, string user_nick)
 {
-    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    for (list<Room>::iterator it = room_info->begin(); it != room_info->end(); it++)
     {
-        if (it->name == group_name)
+        if (it->roomid == room_name)
         {
-            GroupUser u;
-            u.name = user_name;
+            RoomUser u;
+            u.username = user_name;
+            u.nickname = user_nick;
             it->l->push_back(u);
         }
     }
 }
 
-struct bufferevent *ChatInfo::info_get_friend_bev(string name)
+struct bufferevent *ChatInfo::info_get_friend_bev(string username)
 {
     for (list<User>::iterator it = online_user->begin(); it != online_user->end(); it++)
     {
-        if (it->name == name)
+        if (it->username == username)
         {
             return it->bev;
         }
@@ -120,31 +70,33 @@ struct bufferevent *ChatInfo::info_get_friend_bev(string name)
     return NULL;
 }
 
-string ChatInfo::info_get_group_member(string group)
+string ChatInfo::info_get_room_member(string room)
 {
     string member;
-    for (list<Group>::iterator it = group_info->begin(); it != group_info->end(); it++)
+    for (list<Room>::iterator it = room_info->begin(); it != room_info->end(); it++)
     {
-        if (group == it->name)
+        if (room == it->roomid)
         {
-            for (list<GroupUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            for (list<RoomUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
             {
-                member += i->name;
+                member += i->nickname;
                 member += "|";
             }
         }
     }
+    member.pop_back();
     return member;
 }
 
-void ChatInfo::info_add_new_group(string group_name, string user_name)
+void ChatInfo::info_add_new_room(string room_name, string user_name, string user_nick)
 {
-    Group g;
-    g.name = group_name;
-    g.l = new list<GroupUser>;
-    group_info->push_back(g);
+    Room r;
+    r.roomid = room_name;
+    r.l = new list<RoomUser>;
+    room_info->push_back(r);
 
-    GroupUser u;
-    u.name = user_name;
-    g.l->push_back(u);
+    RoomUser u;
+    u.username = user_name;
+    u.nickname = user_nick;
+    r.l->push_back(u);
 }

@@ -17,24 +17,26 @@ using namespace std;
 
 struct User
 {
-    string name;
+    string username;
+    string nickname;
     struct bufferevent *bev;
 };
 typedef struct User User;
 
-struct GroupUser
+struct RoomUser
 {
-    string name;
+    string username;
+    string nickname;
 };
 
-typedef struct GroupUser GroupUser;
+typedef struct RoomUser RoomUser;
 
-struct Group
+struct Room
 {
-    string name;
-    list<GroupUser> *l;
+    string roomid;
+    list<RoomUser> *l;
 };
-typedef struct Group Group;
+typedef struct Room Room;
 
 class Server;
 
@@ -43,19 +45,19 @@ class ChatInfo
     friend class Server;
 private:
     list<User> *online_user;     // 保存所有在线的用户信息
-    list<Group> *group_info;     // 保存所有群信息
+    list<Room> *room_info;     // 保存所有房间信息
     ChatDataBase *mydatabase;    // 数据库对象
 
 public:
     ChatInfo();
     ~ChatInfo();
 
-    bool info_group_exist(string);
-    bool info_user_in_group(string, string);
-    void info_group_add_user(string, string);
+    bool info_room_exist(string);
+    bool info_user_in_room(string, string);
+    void info_room_add_user(string, string, string);
     struct bufferevent *info_get_friend_bev(string);
-    string info_get_group_member(string);
-    void info_add_new_group(string, string);
+    string info_get_room_member(string);
+    void info_add_new_room(string, string, string);
 };
 
 #endif //MOVIE_SERVER_CHATLIST_H

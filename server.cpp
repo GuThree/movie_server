@@ -104,29 +104,33 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_login(bev, val);
     }
+    else if (cmd == "get_nick")
+    {
+        server_get_nickname(bev, val);
+    }
     else if (cmd == "add_friend")
     {
         server_add_friend(bev, val);
     }
-    else if (cmd == "create_group")
+    else if (cmd == "create_room")
     {
-        server_create_group(bev, val);
+        server_create_room(bev, val);
     }
-    else if (cmd == "add_group")
+    else if (cmd == "enter_room")
     {
-        server_add_group(bev, val);
+        server_enter_room(bev, val);
     }
     else if (cmd == "private_chat")
     {
         server_private_chat(bev, val);
     }
-    else if (cmd == "group_chat")
+    else if (cmd == "room_chat")
     {
-        server_group_chat(bev, val);
+        server_room_chat(bev, val);
     }
-    else if (cmd == "get_group_member")
+    else if (cmd == "get_room_member")
     {
-        server_get_group_member(bev, val);
+        server_get_room_member(bev, val);
     }
     else if (cmd == "offline")
     {
@@ -146,16 +150,16 @@ void Server::server_register(struct bufferevent *bev, Json::Value val)
 {
     chatdb->my_database_connect("m_user");
 
-    if (chatdb->my_database_user_exist(val["user"].asString()))   // 用户已存在
+    if (chatdb->my_database_user_exist(val["username"].asString()))   // 用户已存在
     {
-        Json::Value val;
-        val["cmd"] = "register_reply";
-        val["result"] = "failure";
+        Json::Value v;
+        v["cmd"] = "register_reply";
+        v["result"] = "failure";
 
         Json::StreamWriterBuilder writerBuilder;
         unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
-        string s = Json::writeString(writerBuilder, val);
+        string s = Json::writeString(writerBuilder, v);
         if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
         {
             cout << "bufferevent_write" << endl;
@@ -163,15 +167,15 @@ void Server::server_register(struct bufferevent *bev, Json::Value val)
     }
     else                                               // 用户不存在 可注册
     {
-        chatdb->my_database_user_password(val["user"].asString(), val["nickname"].asString(), val["password"].asString());
-        Json::Value val;
-        val["cmd"] = "register_reply";
-        val["result"] = "success";
+        chatdb->my_database_user_password(val["username"].asString(), val["nickname"].asString(), val["password"].asString());
+        Json::Value v;
+        v["cmd"] = "register_reply";
+        v["result"] = "success";
 
         Json::StreamWriterBuilder writerBuilder;
         unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
-        string s = Json::writeString(writerBuilder, val);
+        string s = Json::writeString(writerBuilder, v);
         if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
         {
             cout << "bufferevent_write" << endl;
@@ -184,7 +188,7 @@ void Server::server_register(struct bufferevent *bev, Json::Value val)
 void Server::server_login(struct bufferevent *bev, Json::Value val)
 {
     chatdb->my_database_connect("m_user");
-    if (!chatdb->my_database_user_exist(val["user"].asString()))   // 用户不存在
+    if (!chatdb->my_database_user_exist(val["username"].asString()))   // 用户不存在
     {
         Json::Value val;
         val["cmd"] = "login_reply";
@@ -201,7 +205,7 @@ void Server::server_login(struct bufferevent *bev, Json::Value val)
         return;
     }
 
-    if (!chatdb->my_database_password_correct(val["user"].asString(),
+    if (!chatdb->my_database_password_correct(val["username"].asString(),
                                               val["password"].asString()))    // 密码不正确
     {
         Json::Value val;
@@ -223,17 +227,16 @@ void Server::server_login(struct bufferevent *bev, Json::Value val)
     string s, name;
 
     // 向链表中添加用户
-    User u = {val["user"].asString(), bev};
+    User u = {val["username"].asString(), val["nickname"].asString(), bev};
     chatlist->online_user->push_back(u);
 
     // 获取好友列表并且返回
-    string friend_list, group_list;
-    chatdb->my_database_get_friend_group(val["user"].asString(), friend_list, group_list);
+    string friend_list;
+    chatdb->my_database_get_friend(val["username"].asString(), friend_list);
 
     v["cmd"] = "login_reply";
     v["result"] = "success";
     v["friend"] = friend_list;
-    v["group"] = group_list;
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
@@ -261,11 +264,11 @@ void Server::server_login(struct bufferevent *bev, Json::Value val)
         for (list<User>::iterator it = chatlist->online_user->begin();
              it != chatlist->online_user->end(); it++)
         {
-            if (name == it->name)
+            if (name == it->username)
             {
                 v.clear();
                 v["cmd"] = "friend_login";
-                v["friend"] = val["user"];
+                v["friend"] = val["username"];
                 s = Json::writeString(writerBuilder, v);
                 if (bufferevent_write(it->bev, s.c_str(), strlen(s.c_str())) < 0)
                 {
@@ -274,6 +277,31 @@ void Server::server_login(struct bufferevent *bev, Json::Value val)
             }
         }
         start = end + 1;
+    }
+
+    chatdb->my_database_disconnect();
+}
+
+void Server::server_get_nickname(struct bufferevent *bev, Json::Value val)
+{
+    Json::Value v;
+    string nick, s;
+
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    chatdb->my_database_connect("m_user");
+    chatdb->my_database_get_nickname(val["username"].asString(), nick);
+
+    v["cmd"] = "nickname_reply";
+    v["result"] = "success";
+    v["username"] = val["username"];
+    v["nickname"] = nick;
+
+    s = Json::writeString(writerBuilder, v);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
     }
 
     chatdb->my_database_disconnect();
@@ -303,7 +331,7 @@ void  Server::server_add_friend(struct bufferevent *bev, Json::Value val)
     }
 
 
-    if (chatdb->my_database_is_friend(val["user"].asString(), val["friend"].asString()))
+    if (chatdb->my_database_is_friend(val["username"].asString(), val["friend"].asString()))
     {
         v.clear();
         v["cmd"] = "add_reply";
@@ -318,8 +346,8 @@ void  Server::server_add_friend(struct bufferevent *bev, Json::Value val)
     }
 
     // 修改双方的数据库
-    chatdb->my_database_add_new_friend(val["user"].asString(), val["friend"].asString());
-    chatdb->my_database_add_new_friend(val["friend"].asString(), val["user"].asString());
+    chatdb->my_database_add_new_friend(val["username"].asString(), val["friend"].asString());
+    chatdb->my_database_add_new_friend(val["friend"].asString(), val["username"].asString());
 
     v.clear();
     v["cmd"] = "add_reply";
@@ -336,11 +364,11 @@ void  Server::server_add_friend(struct bufferevent *bev, Json::Value val)
     for (list<User>::iterator it = chatlist->online_user->begin();
          it != chatlist->online_user->end(); it++)
     {
-        if (val["friend"] == it->name)
+        if (val["friend"] == it->username)
         {
             v.clear();
             v["cmd"] = "add_friend_reply";
-            v["result"] = val["user"];
+            v["result"] = val["username"];
 
             s = Json::writeString(writerBuilder, v);
             if (bufferevent_write(it->bev, s.c_str(), strlen(s.c_str())) < 0)
@@ -353,19 +381,18 @@ void  Server::server_add_friend(struct bufferevent *bev, Json::Value val)
     chatdb->my_database_disconnect();
 }
 
-void Server::server_create_group(struct bufferevent *bev, Json::Value val)
+void Server::server_create_room(struct bufferevent *bev, Json::Value val)
 {
-    chatdb->my_database_connect("m_group");
 
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
     // 判断群是否存在
-    if (chatdb->my_database_group_exist(val["group"].asString()))
+    if (chatlist->info_room_exist(val["roomid"].asString()))
     {
         Json::Value v;
-        v["cmd"] = "create_group_reply";
-        v["result"] = "group_exist";
+        v["cmd"] = "create_room_reply";
+        v["result"] = "room_exist";
 
         string s = Json::writeString(writerBuilder, v);
         if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
@@ -375,41 +402,36 @@ void Server::server_create_group(struct bufferevent *bev, Json::Value val)
         return;
     }
 
-    // 把群信息写入数据库
-    chatdb->my_database_add_new_group(val["group"].asString(), val["user"].asString());
+    // 修改群链表
+    string nick;
+    chatdb->my_database_connect("m_user");
+    chatdb->my_database_get_nickname(val["username"].asString(), nick);
+    chatlist->info_add_new_room(val["roomid"].asString(), val["username"].asString(), nick);
     chatdb->my_database_disconnect();
 
-    chatdb->my_database_connect("m_user");
-    // 修改数据库个人信息
-    chatdb->my_database_user_add_group(val["user"].asString(), val["group"].asString());
-    // 修改群链表
-    chatlist->info_add_new_group(val["group"].asString(), val["user"].asString());
-
     Json::Value value;
-    value["cmd"] = "create_group_reply";
+    value["cmd"] = "create_room_reply";
     value["result"] = "success";
-    value["group"] = val["group"];
+    value["roomid"] = val["roomid"];
 
     string s = Json::writeString(writerBuilder, value);
     if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
     {
         cout << "bufferevent_write" << endl;
     }
-
-    chatdb->my_database_disconnect();
 }
 
-void Server::server_add_group(struct bufferevent *bev, Json::Value val)
+void Server::server_enter_room(struct bufferevent *bev, Json::Value val)
 {
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
     // 判断群是否存在
-    if (!chatlist->info_group_exist(val["group"].asString()))
+    if (!chatlist->info_room_exist(val["roomid"].asString()))
     {
         Json::Value v;
-        v["cmd"] = "add_group_reply";
-        v["result"] = "group_not_exist";
+        v["cmd"] = "enter_room_reply";
+        v["result"] = "room_not_exist";
 
         string s = Json::writeString(writerBuilder, v);
         if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
@@ -420,11 +442,11 @@ void Server::server_add_group(struct bufferevent *bev, Json::Value val)
     }
 
     // 判断用户是否在群里
-    if (chatlist->info_user_in_group(val["group"].asString(), val["user"].asString()))
+    if (chatlist->info_user_in_room(val["roomid"].asString(), val["username"].asString()))
     {
         Json::Value v;
-        v["cmd"] = "add_group_reply";
-        v["result"] = "user_in_group";
+        v["cmd"] = "enter_room_reply";
+        v["result"] = "user_in_room";
 
         string s = Json::writeString(writerBuilder, v);
         if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
@@ -434,22 +456,13 @@ void Server::server_add_group(struct bufferevent *bev, Json::Value val)
         return;
     }
 
-    // 修改数据库（用户表 群表）
-    chatdb->my_database_connect("m_user");
-    chatdb->my_database_user_add_group(val["user"].asString(), val["group"].asString());
-    chatdb->my_database_disconnect();
-
-    chatdb->my_database_connect("m_group");
-    chatdb->my_database_group_add_user(val["group"].asString(), val["user"].asString());
-    chatdb->my_database_disconnect();
-
     // 修改链表
-    chatlist->info_group_add_user(val["group"].asString(), val["user"].asString());
+    chatlist->info_room_add_user(val["roomid"].asString(), val["username"].asString(), val["nickname"].asString());
 
     Json::Value v;
-    v["cmd"] = "add_group_reply";
+    v["cmd"] = "enter_room_reply";
     v["result"] = "success";
-    v["group"] = val["group"];
+    v["roomid"] = val["roomid"];
 
     string s = Json::writeString(writerBuilder, v);
     if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
@@ -496,18 +509,18 @@ void Server::server_private_chat(struct bufferevent *bev, Json::Value val)
     }
 }
 
-void Server::server_group_chat(struct bufferevent *bev, Json::Value val)
+void Server::server_room_chat(struct bufferevent *bev, Json::Value val)
 {
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
-    for (list<Group>::iterator it = chatlist->group_info->begin(); it != chatlist->group_info->end(); it++)
+    for (list<Room>::iterator it = chatlist->room_info->begin(); it != chatlist->room_info->end(); it++)
     {
-        if (val["group"].asString() == it->name)
+        if (val["roomid"].asString() == it->roomid)
         {
-            for (list<GroupUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            for (list<RoomUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
             {
-                struct bufferevent *to_bev = chatlist->info_get_friend_bev(i->name);
+                struct bufferevent *to_bev = chatlist->info_get_friend_bev(i->username);
                 if (to_bev != NULL)
                 {
                     string s = Json::writeString(writerBuilder, val);
@@ -521,7 +534,7 @@ void Server::server_group_chat(struct bufferevent *bev, Json::Value val)
     }
 
     Json::Value v;
-    v["cmd"] = "group_chat_reply";
+    v["cmd"] = "room_chat_reply";
     v["result"] = "success";
 
     string s = Json::writeString(writerBuilder, v);
@@ -531,17 +544,17 @@ void Server::server_group_chat(struct bufferevent *bev, Json::Value val)
     }
 }
 
-void Server::server_get_group_member(struct bufferevent *bev, Json::Value val)
+void Server::server_get_room_member(struct bufferevent *bev, Json::Value val)
 {
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
-    string member = chatlist->info_get_group_member(val["group"].asString());
+    string member = chatlist->info_get_room_member(val["roomid"].asString());
 
     Json::Value v;
-    v["cmd"] = "get_group_member_reply";
+    v["cmd"] = "get_room_member_reply";
     v["member"] = member;
-    v["group"] = val["group"];
+    v["roomid"] = val["roomid"];
 
     string s = Json::writeString(writerBuilder, v);
     if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
@@ -557,7 +570,7 @@ void Server::server_user_offline(struct bufferevent *bev, Json::Value val)
     for (list<User>::iterator it = chatlist->online_user->begin();
          it != chatlist->online_user->end(); it++)
     {
-        if (it->name == val["user"].asString())
+        if (it->username == val["user"].asString())
         {
             chatlist->online_user->erase(it);
             break;
@@ -567,14 +580,14 @@ void Server::server_user_offline(struct bufferevent *bev, Json::Value val)
     chatdb->my_database_connect("m_user");
 
     // 获取好友列表并且返回
-    string friend_list, group_list;
+    string friend_list;
     string name, s;
     Json::Value v;
 
     Json::StreamWriterBuilder writerBuilder;
     unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
 
-    chatdb->my_database_get_friend_group(val["user"].asString(), friend_list, group_list);
+    chatdb->my_database_get_friend(val["username"].asString(), friend_list);
 
     // 向好友发送下线提醒
     int start = 0, end = 0, flag = 1;
@@ -594,7 +607,7 @@ void Server::server_user_offline(struct bufferevent *bev, Json::Value val)
         for (list<User>::iterator it = chatlist->online_user->begin();
              it != chatlist->online_user->end(); it++)
         {
-            if (name == it->name)
+            if (name == it->username)
             {
                 v.clear();
                 v["cmd"] = "friend_offline";
