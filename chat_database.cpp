@@ -33,53 +33,6 @@ void ChatDataBase::my_database_disconnect()
     mysql_close(mysql);
 }
 
-int ChatDataBase::my_database_get_room_id(string *s)
-{
-    if (mysql_query(mysql, "show tables;") != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-
-    MYSQL_RES *res = mysql_store_result(mysql);
-    if (res == NULL)
-    {
-        cout << "mysql_store_result" << endl;
-    }
-
-    int count = 0;
-    MYSQL_ROW row;
-    while (row = mysql_fetch_row(res))
-    {
-        s[count] += row[0];
-        count++;
-    }
-
-    return count;
-}
-
-void ChatDataBase::my_database_get_room_member(string name, string &s)
-{
-    char sql[1024] = {0};
-    sprintf(sql, "select member from %s;", name.c_str());
-    if (mysql_query(mysql, sql) != 0)
-    {
-        cout << "mysql_query error" << endl;
-    }
-
-    MYSQL_RES *res = mysql_store_result(mysql);
-    if (res == NULL)
-    {
-        cout << "mysql_store_result error" << endl;
-    }
-
-    MYSQL_ROW row = mysql_fetch_row(res);
-    if (row[0] == NULL)
-    {
-        return;
-    }
-    s += row[0];
-}
-
 bool ChatDataBase::my_database_user_exist(string name)
 {
 
@@ -102,9 +55,9 @@ bool ChatDataBase::my_database_user_exist(string name)
 void ChatDataBase::my_database_user_password(string username, string nickname, string password)
 {
     char sql[128] = {0};
-    sprintf(sql, "create table %s (password varchar(16), nickname varchar(16), friends varchar(4096)) character set utf8;"
+    sprintf(sql, "create table %s (password varchar(16), nickname varchar(16), friends_id varchar(4096), friends_nick varchar(4096)) character set utf8;"
             , username.c_str());
-    cout << sql;
+
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;
@@ -136,10 +89,10 @@ bool ChatDataBase::my_database_password_correct(string name, string password)
         return false;
 }
 
-void ChatDataBase::my_database_get_friend(string name, string &f)
+void ChatDataBase::my_database_get_friend(string name, string &f_id, string &f_nick)
 {
     char sql[128] = {0};
-    sprintf(sql, "select friends from %s;", name.c_str());
+    sprintf(sql, "select friends_id, friends_nick from %s;", name.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;
@@ -148,7 +101,11 @@ void ChatDataBase::my_database_get_friend(string name, string &f)
     MYSQL_ROW row = mysql_fetch_row(res);
     if (row[0] != NULL)
     {
-        f.append(row[0]);
+        f_id.append(row[0]);
+    }
+    if (row[1] != NULL)
+    {
+        f_nick.append(row[1]);
     }
     mysql_free_result(res);
 }
@@ -156,7 +113,7 @@ void ChatDataBase::my_database_get_friend(string name, string &f)
 bool ChatDataBase::my_database_is_friend(string n1, string n2)
 {
     char sql[128] = {0};
-    sprintf(sql, "select friends from %s;", n1.c_str());
+    sprintf(sql, "select friends_id from %s;", n1.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;
@@ -196,30 +153,34 @@ bool ChatDataBase::my_database_is_friend(string n1, string n2)
     return false;
 }
 
-void ChatDataBase::my_database_add_new_friend(string n1, string n2)
+void ChatDataBase::my_database_add_new_friend(string n1, string n2, string n3)
 {
     char sql[1024] = {0};
-    sprintf(sql, "select friends from %s;", n1.c_str());
+    sprintf(sql, "select friends_id, friends_nick from %s;", n1.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query" << endl;
     }
-    string friend_list;
+    string friend_id, friend_nick;
     MYSQL_RES *res = mysql_store_result(mysql);
     MYSQL_ROW row = mysql_fetch_row(res);
-    if (row[0] == NULL)    //原来没有好友
+    if (row[0] == NULL)    // 原来没有好友
     {
-        friend_list.append(n2);
+        friend_id.append(n2);
+        friend_nick.append(n3);
     }
     else
     {
-        friend_list.append(row[0]);
-        friend_list += "|";
-        friend_list += n2;
+        friend_id.append(row[0]);
+        friend_nick.append(row[1]);
+        friend_id += "|";
+        friend_id += n2;
+        friend_nick += "|";
+        friend_nick += n3;
     }
 
     memset(sql, 0, sizeof(sql));
-    sprintf(sql, "update %s set friends = '%s';", n1.c_str(), friend_list.c_str());
+    sprintf(sql, "update %s set friends_id = '%s', friends_nick = '%s';", n1.c_str(), friend_id.c_str(), friend_nick.c_str());
     if (mysql_query(mysql, sql) != 0)
     {
         cout << "mysql_query error" << endl;

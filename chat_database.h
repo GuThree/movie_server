@@ -21,14 +21,12 @@ public:
     ~ChatDataBase();
 
     void my_database_connect(const char *name);
-    int my_database_get_room_id(string *);
-    void my_database_get_room_member(string, string &);
     bool my_database_user_exist(string);
     void my_database_user_password(string, string, string);
     bool my_database_password_correct(string, string);
     bool my_database_is_friend(string, string);
-    void my_database_get_friend(string, string &);
-    void my_database_add_new_friend(string, string);
+    void my_database_get_friend(string, string &, string &);
+    void my_database_add_new_friend(string, string, string);
     void my_database_get_nickname(string, string &);
     void my_database_disconnect();
 };
