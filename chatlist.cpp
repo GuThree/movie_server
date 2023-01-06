@@ -58,6 +58,24 @@ void ChatInfo::info_room_add_user(string room_name, string user_name, string use
     }
 }
 
+void ChatInfo::info_room_del_user(string room_name, string user_name)
+{
+    for (list<Room>::iterator it = room_info->begin(); it != room_info->end(); it++)
+    {
+        if (it->roomid == room_name)
+        {
+            for (list<RoomUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            {
+                if (i->username == user_name)
+                {
+                    it->l->erase(i);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 struct bufferevent *ChatInfo::info_get_friend_bev(string username)
 {
     for (list<User>::iterator it = online_user->begin(); it != online_user->end(); it++)

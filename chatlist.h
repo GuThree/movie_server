@@ -55,6 +55,7 @@ public:
     bool info_room_exist(string);
     bool info_user_in_room(string, string);
     void info_room_add_user(string, string, string);
+    void info_room_del_user(string, string);
     struct bufferevent *info_get_friend_bev(string);
     string info_get_room_member(string);
     void info_add_new_room(string, string, string);

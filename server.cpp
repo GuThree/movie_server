@@ -120,6 +120,10 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_enter_room(bev, val);
     }
+    else if (cmd == "leave_room")
+    {
+        server_leave_room(bev, val);
+    }
     else if (cmd == "private_chat")
     {
         server_private_chat(bev, val);
@@ -503,6 +507,43 @@ void Server::server_enter_room(struct bufferevent *bev, Json::Value val)
     chatdb->my_database_get_nickname(val["username"].asString(), nick);
     chatlist->info_room_add_user(val["roomid"].asString(), val["username"].asString(), nick);
     chatdb->my_database_disconnect();
+}
+
+void Server::server_leave_room(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    Json::Value v;
+
+    // 修改链表
+    chatlist->info_room_del_user(val["roomid"].asString(), val["username"].asString());
+
+    // 回复房间其它成员
+    for (list<Room>::iterator it = chatlist->room_info->begin(); it != chatlist->room_info->end(); it++)
+    {
+        if (val["roomid"].asString() == it->roomid)
+        {
+            v.clear();
+            v["cmd"] = "leave_room_reply";
+            v["result"] = "success";
+            v["roomid"] = val["roomid"];
+            v["username"] = val["username"];
+            v["nickname"] = val["nickname"];
+            for (list<RoomUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            {
+                struct bufferevent *to_bev = chatlist->info_get_friend_bev(i->username);
+                if (to_bev != NULL)
+                {
+                    string s = Json::writeString(writerBuilder, v);
+                    if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
+                    {
+                        cout << "bufferevent_write" << endl;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Server::server_private_chat(struct bufferevent *bev, Json::Value val)
