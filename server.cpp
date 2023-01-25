@@ -120,6 +120,10 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_enter_room(bev, val);
     }
+    else if (cmd == "invite")
+    {
+        server_invite_room(bev, val);
+    }
     else if (cmd == "leave_room")
     {
         server_leave_room(bev, val);
@@ -507,6 +511,43 @@ void Server::server_enter_room(struct bufferevent *bev, Json::Value val)
     chatdb->my_database_get_nickname(val["username"].asString(), nick);
     chatlist->info_room_add_user(val["roomid"].asString(), val["username"].asString(), nick);
     chatdb->my_database_disconnect();
+}
+
+void Server::server_invite_room(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+    Json::Value v;
+
+    string to_fri = val["to_fri"].asString();
+    string friends[10000];
+    int j = 0;
+    for (int i = 0; i < to_fri.size() - 1; i++) {
+        if (to_fri[i] == '|') {
+            j++;
+            continue;
+        }
+        friends[j] += to_fri[i];
+    }
+
+    v["cmd"] = "invite_reply";
+    v["result"] = "success";
+    v["roomid"] = val["roomid"];
+    v["inviter"] =  val["from_user"];
+
+    for (int i = 0; i < friends->size(); ++i)
+    {
+        cout << friends[i];
+        struct bufferevent *to_bev = chatlist->info_get_friend_bev(friends[i]);
+        if (to_bev != NULL)
+        {
+            string s = Json::writeString(writerBuilder, v);
+            if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
+            {
+                cout << "bufferevent_write" << endl;
+            }
+        }
+    }
 }
 
 void Server::server_leave_room(struct bufferevent *bev, Json::Value val)

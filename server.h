@@ -43,6 +43,7 @@ private:
     static void server_add_friend(struct bufferevent *bev, Json::Value val);
     static void server_create_room(struct bufferevent *bev, Json::Value val);
     static void server_enter_room(struct bufferevent *bev, Json::Value val);
+    static void server_invite_room(struct bufferevent *bev, Json::Value val);
     static void server_leave_room(struct bufferevent *bev, Json::Value val);
     static void server_private_chat(struct bufferevent *bev, Json::Value val);
     static void server_room_chat(struct bufferevent *bev, Json::Value val);
