@@ -47,8 +47,10 @@ private:
     static void server_leave_room(struct bufferevent *bev, Json::Value val);
     static void server_private_chat(struct bufferevent *bev, Json::Value val);
     static void server_room_chat(struct bufferevent *bev, Json::Value val);
+    static void server_get_room_member_id(struct bufferevent *bev, Json::Value val);
     static void server_get_room_member(struct bufferevent *bev, Json::Value val);
     static void server_user_offline(struct bufferevent *bev, Json::Value val);
+    static void server_kick_member(struct bufferevent *bev, Json::Value val);
     static void send_file_handler(int, int, int *, int *);
     static void server_send_file(struct bufferevent *bev, Json::Value val);
 

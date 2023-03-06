@@ -136,9 +136,17 @@ void Server::read_cb(struct bufferevent *bev, void *ctx)
     {
         server_room_chat(bev, val);
     }
+    else if (cmd == "get_room_member_id")
+    {
+        server_get_room_member_id(bev, val);
+    }
     else if (cmd == "get_room_member")
     {
         server_get_room_member(bev, val);
+    }
+    else if (cmd == "kick")
+    {
+        server_kick_member(bev, val);
     }
     else if (cmd == "offline")
     {
@@ -537,7 +545,6 @@ void Server::server_invite_room(struct bufferevent *bev, Json::Value val)
 
     for (int i = 0; i < friends->size(); ++i)
     {
-        cout << friends[i];
         struct bufferevent *to_bev = chatlist->info_get_friend_bev(friends[i]);
         if (to_bev != NULL)
         {
@@ -660,6 +667,25 @@ void Server::server_room_chat(struct bufferevent *bev, Json::Value val)
     }
 }
 
+void Server::server_get_room_member_id(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    string member = chatlist->info_get_room_member_id(val["roomid"].asString());
+
+    Json::Value v;
+    v["cmd"] = "get_room_member_id_reply";
+    v["memberid"] = member;
+    v["roomid"] = val["roomid"];
+
+    string s = Json::writeString(writerBuilder, v);
+    if (bufferevent_write(bev, s.c_str(), strlen(s.c_str())) < 0)
+    {
+        cout << "bufferevent_write" << endl;
+    }
+}
+
 void Server::server_get_room_member(struct bufferevent *bev, Json::Value val)
 {
     Json::StreamWriterBuilder writerBuilder;
@@ -690,6 +716,41 @@ void Server::server_user_offline(struct bufferevent *bev, Json::Value val)
         {
             chatlist->online_user->erase(it);
             break;
+        }
+    }
+}
+
+void Server::server_kick_member(struct bufferevent *bev, Json::Value val)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+    Json::Value v;
+
+    string to_mem = val["to_mem"].asString();
+    string member[10000];
+    int j = 0;
+    for (int i = 0; i < to_mem.size() - 1; i++) {
+        if (to_mem[i] == '|') {
+            j++;
+            continue;
+        }
+        member[j] += to_mem[i];
+    }
+
+    v["cmd"] = "kick_reply";
+    v["result"] = "success";
+    v["roomid"] = val["roomid"];
+
+    for (int i = 0; i < member->size(); ++i)
+    {
+        struct bufferevent *to_bev = chatlist->info_get_friend_bev(member[i]);
+        if (to_bev != NULL)
+        {
+            string s = Json::writeString(writerBuilder, v);
+            if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
+            {
+                cout << "bufferevent_write" << endl;
+            }
         }
     }
 }

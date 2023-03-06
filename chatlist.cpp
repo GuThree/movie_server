@@ -88,6 +88,24 @@ struct bufferevent *ChatInfo::info_get_friend_bev(string username)
     return NULL;
 }
 
+string ChatInfo::info_get_room_member_id(string room)
+{
+    string member;
+    for (list<Room>::iterator it = room_info->begin(); it != room_info->end(); it++)
+    {
+        if (room == it->roomid)
+        {
+            for (list<RoomUser>::iterator i = it->l->begin(); i != it->l->end(); i++)
+            {
+                member += i->username;
+                member += "|";
+            }
+        }
+    }
+    member.pop_back();
+    return member;
+}
+
 string ChatInfo::info_get_room_member(string room)
 {
     string member;
