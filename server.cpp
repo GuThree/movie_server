@@ -243,7 +243,9 @@ void Server::server_login(struct bufferevent *bev, Json::Value val)
     string s, name;
 
     // 向链表中添加用户
-    User u = {val["username"].asString(), val["nickname"].asString(), bev};
+    string nickname;
+    chatdb->my_database_get_nickname(val["username"].asString(), nickname);
+    User u = {val["username"].asString(), nickname, bev};
     chatlist->online_user->push_back(u);
 
     // 获取好友列表并且返回
@@ -615,6 +617,11 @@ void Server::server_private_chat(struct bufferevent *bev, Json::Value val)
         return;
     }
 
+    string nn;
+    chatdb->my_database_connect("m_user");
+    chatdb->my_database_get_nickname(val["user_from"].asString(), nn);
+    chatdb->my_database_disconnect();
+    val["nick_from"] = nn;
     string s = Json::writeString(writerBuilder, val);
     if (bufferevent_write(to_bev, s.c_str(), strlen(s.c_str())) < 0)
     {
